@@ -1,0 +1,55 @@
+DROP TABLE IF EXISTS mart.daily_revenue;
+
+CREATE TABLE mart.daily_revenue AS
+SELECT
+  purchase_date,
+  SUM(total_price) AS gross_revenue,
+  SUM(CASE WHEN is_cancelled = FALSE THEN total_price ELSE 0 END) AS net_revenue,
+  SUM(CASE WHEN is_cancelled = TRUE THEN total_price ELSE 0 END) AS cancelled_revenue,
+  COUNT(*) AS transactions,
+  SUM(CASE WHEN is_cancelled = TRUE THEN 1 ELSE 0 END)::NUMERIC / COUNT(*) AS cancellation_rate,
+  AVG(CASE WHEN is_cancelled = FALSE THEN total_price END) AS avg_order_value
+FROM stg.electronic_sales_clean
+GROUP BY purchase_date
+ORDER BY purchase_date;
+
+CREATE INDEX IF NOT EXISTS ix_mart_daily_revenue_date
+ON mart.daily_revenue (purchase_date);
+
+DROP TABLE IF EXISTS mart.daily_product_revenue;
+
+CREATE TABLE mart.daily_product_revenue AS
+SELECT
+  purchase_date,
+  product_type,
+  SUM(CASE WHEN is_cancelled = FALSE THEN total_price ELSE 0 END) AS net_revenue,
+  SUM(CASE WHEN is_cancelled = FALSE THEN quantity ELSE 0 END) AS units_sold
+FROM stg.electronic_sales_clean
+GROUP BY purchase_date, product_type
+ORDER BY purchase_date, product_type;
+
+CREATE INDEX IF NOT EXISTS ix_mart_daily_product_date
+ON mart.daily_product_revenue (purchase_date);
+
+DROP TABLE IF EXISTS mart.daily_loyalty_value;
+
+CREATE TABLE mart.daily_loyalty_value AS
+SELECT
+  purchase_date,
+  loyalty_member,
+  SUM(CASE WHEN is_cancelled = FALSE THEN total_price ELSE 0 END) AS net_revenue,
+  COUNT(*) FILTER (WHERE is_cancelled = FALSE) AS orders,
+  AVG(CASE WHEN is_cancelled = FALSE THEN total_price END) AS avg_order_value
+FROM stg.electronic_sales_clean
+GROUP BY purchase_date, loyalty_member
+ORDER BY purchase_date, loyalty_member;
+
+CREATE INDEX IF NOT EXISTS ix_mart_daily_loyalty_date
+ON mart.daily_loyalty_value (purchase_date);
+
+SELECT COUNT(*) FROM mart.daily_revenue;
+SELECT COUNT(*) FROM mart.daily_product_revenue;
+SELECT COUNT(*) FROM mart.daily_loyalty_value;
+
+SELECT SUM(transactions) FROM mart.daily_revenue;
+SELECT SUM(orders) FROM mart.daily_loyalty_value;
