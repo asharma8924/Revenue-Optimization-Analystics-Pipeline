@@ -1,0 +1,59 @@
+CREATE SCHEMA IF NOT EXISTS raw;
+CREATE SCHEMA IF NOT EXISTS stg;
+CREATE SCHEMA IF NOT EXISTS mart;
+CREATE SCHEMA IF NOT EXISTS ops;
+
+DROP TABLE IF EXISTS raw.electronic_sales;
+
+CREATE TABLE raw.electronic_sales (
+  customer_id         TEXT,
+  age                 TEXT,
+  gender              TEXT,
+  loyalty_member      TEXT,
+  product_type        TEXT,
+  sku                 TEXT,
+  rating              TEXT,
+  order_status        TEXT,
+  payment_method      TEXT,
+  total_price         TEXT,
+  unit_price          TEXT,
+  quantity            TEXT,
+  purchase_date       TEXT,
+  shipping_type       TEXT,
+  add_ons_purchased   TEXT,
+  add_on_total        TEXT
+);
+
+DROP TABLE IF EXISTS stg.electronic_sales_clean;
+
+CREATE TABLE stg.electronic_sales_clean AS
+SELECT
+  NULLIF(customer_id,'')::INT                                  AS customer_id,
+  NULLIF(age,'')::INT                                          AS age,
+  NULLIF(TRIM(gender),'')                                      AS gender,
+  CASE
+    WHEN LOWER(TRIM(loyalty_member)) IN ('yes','y','true','1') THEN TRUE
+    ELSE FALSE
+  END                                                          AS loyalty_member,
+  NULLIF(TRIM(product_type),'')                                AS product_type,
+  NULLIF(TRIM(sku),'')                                         AS sku,
+  NULLIF(rating,'')::INT                                       AS rating,
+  NULLIF(TRIM(order_status),'')                                AS order_status,
+  NULLIF(TRIM(payment_method),'')                              AS payment_method,
+  NULLIF(TRIM(shipping_type),'')                               AS shipping_type,
+
+  TO_DATE(purchase_date, 'YYYY-MM-DD')                         AS purchase_date,
+
+  NULLIF(total_price,'')::NUMERIC(12,2)                        AS total_price,
+  NULLIF(unit_price,'')::NUMERIC(12,2)                         AS unit_price,
+  NULLIF(quantity,'')::INT                                     AS quantity,
+  COALESCE(NULLIF(add_on_total,''), '0')::NUMERIC(12,2)         AS add_on_total,
+  NULLIF(TRIM(add_ons_purchased),'')                            AS add_ons_purchased,
+
+  CASE WHEN LOWER(TRIM(order_status)) = 'cancelled' THEN TRUE ELSE FALSE END AS is_cancelled
+FROM raw.electronic_sales;
+
+CREATE INDEX IF NOT EXISTS ix_stg_sales_date   ON stg.electronic_sales_clean (purchase_date);
+CREATE INDEX IF NOT EXISTS ix_stg_sales_prod   ON stg.electronic_sales_clean (product_type);
+CREATE INDEX IF NOT EXISTS ix_stg_sales_loyal  ON stg.electronic_sales_clean (loyalty_member);
+CREATE INDEX IF NOT EXISTS ix_stg_sales_status ON stg.electronic_sales_clean (is_cancelled);
