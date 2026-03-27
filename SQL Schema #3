@@ -1,0 +1,18 @@
+CREATE OR REPLACE VIEW ops.data_quality_check AS
+SELECT
+  COUNT(*) AS total_rows,
+  COUNT(purchase_date) AS non_null_purchase_dates,
+  COUNT(*) - COUNT(purchase_date) AS missing_purchase_dates,
+  MIN(purchase_date) AS min_purchase_date,
+  MAX(purchase_date) AS max_purchase_date
+FROM stg.electronic_sales_clean;
+
+SELECT * FROM ops.data_quality_check;
+
+SELECT
+  column_name,
+  data_type
+FROM information_schema.columns
+WHERE table_schema = 'stg'
+  AND table_name = 'electronic_sales_clean'
+ORDER BY ordinal_position;
